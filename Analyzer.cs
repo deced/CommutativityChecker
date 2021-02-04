@@ -36,8 +36,12 @@ namespace CommutativityChecker
         private void Analyze(SyntaxNodeAnalysisContext context)
         {
             var node = (MethodDeclarationSyntax)context.Node;
-            var tokensToCheck = node.DescendantNodes().OfType<StatementSyntax>().Select(x => x.DescendantNodes().OfType<BinaryExpressionSyntax>().FirstOrDefault());
-            var attributeArg = node.SyntaxTree.GetRoot().DescendantNodes().OfType<AttributeArgumentSyntax>().Select(x => x.ToString().Replace("\"", "")).ToList();
+            var tokensToCheck = node.DescendantNodes().OfType<StatementSyntax>()
+                .Select(x => x.DescendantNodes()
+                .OfType<BinaryExpressionSyntax>().FirstOrDefault());
+            var attributeArg = node.SyntaxTree.GetRoot().DescendantNodes()
+                .OfType<AttributeArgumentSyntax>()
+                .Select(x => x.ToString().Replace("\"", "")).ToList();
             if (tokensToCheck != null)
                 foreach (var token in tokensToCheck)
                 {

@@ -10,9 +10,11 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 
+
 namespace CommutativityChecker
 {
     [DiagnosticAnalyzer(LanguageNames.CSharp)]
+
     public class Analyzer : DiagnosticAnalyzer
     {
         private static DiagnosticDescriptor DiagnosticDescriptor =
@@ -29,27 +31,74 @@ namespace CommutativityChecker
 
         public override void Initialize(AnalysisContext context)
         {
-            context.RegisterSyntaxNodeAction(
-                Analyze,
-                SyntaxKind.MethodDeclaration);
-
+            context.RegisterSyntaxNodeAction(Analyze, SyntaxKind.MethodDeclaration);
         }
-
         private void Analyze(SyntaxNodeAnalysisContext context)
         {
             var node = (MethodDeclarationSyntax)context.Node;
-            var tokensToCheck = node.Body.SyntaxTree.GetRoot().DescendantTokens().OfType<SyntaxToken>().Where(x => x.Kind() == SyntaxKind.MinusToken || x.Kind() == SyntaxKind.SlashToken).ToList();
-            var attributeArg = node.SyntaxTree.GetRoot().DescendantNodes().OfType<AttributeArgumentSyntax>().ToList();
-            foreach (var token in tokensToCheck)
-            {
-                foreach (var arg in attributeArg)
+            var tokensToCheck = node.DescendantNodes().OfType<StatementSyntax>().Select(x => x.DescendantNodes().OfType<BinaryExpressionSyntax>().FirstOrDefault());
+            var attributeArg = node.SyntaxTree.GetRoot().DescendantNodes().OfType<AttributeArgumentSyntax>().Select(x => x.ToString().Replace("\"", "")).ToList();
+            if (tokensToCheck != null)
+                foreach (var token in tokensToCheck)
                 {
-                        if (token.Parent.GetText().ToString().Contains(arg.GetText().ToString().Replace("\"", "")))
-                        {
-                            context.ReportDiagnostic(Diagnostic.Create(DiagnosticDescriptor, token.Parent.GetLocation()));
-                        }
+                    var Tree = GetMathOperations(token);
+                    if (!(Tree.All(x => x.CanBeCommutative(attributeArg.ToArray()) && IsCommutative(Tree, attributeArg.ToArray()))))
+                        context.ReportDiagnostic(Diagnostic.Create(DiagnosticDescriptor, token.Parent.GetLocation()));
+                }
+        }
+        static bool IsCommutative(List<MathOperation> operations, params string[] args)
+        {
+            List<string> placeCheck = new List<string> { }; // a*b + a : false, не хватает b во втором слагаемом
+            foreach (var opeation in operations)
+            {
+                var countCheck = opeation.Variables.Where(x => args.Contains(x)).ToList(); // a*a*b  : false, не хватает множителя b
+                int count = 0;
+                if (countCheck.Count > 1)
+                {
+                    foreach (string op in countCheck)
+                    {
+                        if (count != 0 && countCheck.Count > 1 && count != countCheck.Count(x => x == op))
+                            return false;
+                        count = countCheck.Count(x => x == op);
+                    }
+                    placeCheck.AddRange(countCheck.Distinct());
                 }
             }
+            return operations.All(x => placeCheck.Except(x.Variables).Count() == 0); // проверка, везде ли были обязательные переменные из placeCheck
+        }
+        // сломается на (a)+b
+        // при comm {a,b} c/(a + 5) false
+        static List<MathOperation> GetMathOperations(ExpressionSyntax expression)
+        {
+            List<MathOperation> ret = new List<MathOperation>();
+            if (expression is BinaryExpressionSyntax binary)
+            {
+                if (binary.Left is IdentifierNameSyntax)
+                {
+                    if (ret.LastOrDefault()?.SyntaxToken != binary.OperatorToken.Kind())
+                        ret.Add(new MathOperation() { SyntaxToken = binary.OperatorToken.Kind() });
+                    ret.Last().Variables.Add(binary.Left.ToString());
+                }
+                else
+                {
+                    ret.AddRange(GetMathOperations(binary.Left));
+                }
+                if (binary.Right is IdentifierNameSyntax)
+                {
+                    if (ret.LastOrDefault()?.SyntaxToken != binary.OperatorToken.Kind())
+                        ret.Add(new MathOperation() { SyntaxToken = binary.OperatorToken.Kind() });
+                    ret.Last().Variables.Add(binary.Right.ToString());
+                }
+                else
+                {
+                    ret.AddRange(GetMathOperations(binary.Right));
+                }
+            }
+            else if (expression is ParenthesizedExpressionSyntax parenthesized)
+            {
+                ret.AddRange(GetMathOperations(parenthesized.Expression));
+            }
+            return ret;
         }
 
     }

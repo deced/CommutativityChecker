@@ -64,10 +64,12 @@ namespace CommutativityChecker
                         if (count != 0 && countCheck.Count > 1 && count != countCheck.Count(x => x == op))
                             return false;
                         count = countCheck.Count(x => x == op);
-                    }
-                    placeCheck.AddRange(countCheck.Distinct());
+                    }                   
                 }
+                placeCheck.AddRange(countCheck.Distinct());
             }
+            if (placeCheck.Count == 1)
+                return true;
             return operations.All(x => placeCheck.Except(x.Variables).Count() == 0); // проверка, везде ли были обязательные переменные из placeCheck
         }
 

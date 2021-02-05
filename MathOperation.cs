@@ -14,7 +14,7 @@ namespace CommutativityChecker
         public bool CanBeCommutative(params string[] args)
         {
             if (Expression == SyntaxKind.DivideExpression || Expression == SyntaxKind.SubtractExpression)
-                if (args.Intersect(Variables).Count() > 0)
+                if (args.Intersect(Variables).Count() > 1)
                     return false;
             return true;
         }

@@ -9,18 +9,19 @@ namespace CommutativityChecker
 {
     class MathOperation
     {
-        public SyntaxKind SyntaxToken { get; set; }
+        public SyntaxKind Expression { get; set; }
         public List<string> Variables;
         public bool CanBeCommutative(params string[] args)
         {
-            if (SyntaxToken == SyntaxKind.SlashToken || SyntaxToken == SyntaxKind.MinusToken)
+            if (Expression == SyntaxKind.DivideExpression || Expression == SyntaxKind.SubtractExpression)
                 if (args.Intersect(Variables).Count() > 0)
                     return false;
             return true;
         }
-        public MathOperation()
+        public MathOperation(SyntaxKind expression = SyntaxKind.None)
         {
             Variables = new List<string>();
+            Expression = expression;
         }
     }
 }

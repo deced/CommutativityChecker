@@ -70,8 +70,22 @@ namespace CommutativityChecker
             }
             return operations.All(x => placeCheck.Except(x.Variables).Count() == 0); // проверка, везде ли были обязательные переменные из placeCheck
         }
-        // сломается на (a)+b
-        // при comm {a,b} c/(a + 5) false
+
+        static SyntaxKind GetParentExpression(SyntaxNode syntaxNode)
+        {
+            while (true)
+            {
+                if (syntaxNode is BinaryExpressionSyntax binaryExpression)
+                {
+                    return binaryExpression.Kind();
+                }
+                if (!(syntaxNode is ExpressionSyntax))
+                {
+                    return SyntaxKind.None;
+                }
+                syntaxNode = syntaxNode.Parent;
+            }
+        }
         static List<MathOperation> GetMathOperations(ExpressionSyntax expression)
         {
             List<MathOperation> ret = new List<MathOperation>();
@@ -79,8 +93,8 @@ namespace CommutativityChecker
             {
                 if (binary.Left is IdentifierNameSyntax)
                 {
-                    if (ret.LastOrDefault()?.SyntaxToken != binary.OperatorToken.Kind())
-                        ret.Add(new MathOperation() { SyntaxToken = binary.OperatorToken.Kind() });
+                    if (ret.LastOrDefault()?.Expression != binary.Kind())
+                        ret.Add(new MathOperation(binary.Kind()));
                     ret.Last().Variables.Add(binary.Left.ToString());
                 }
                 else
@@ -89,8 +103,8 @@ namespace CommutativityChecker
                 }
                 if (binary.Right is IdentifierNameSyntax)
                 {
-                    if (ret.LastOrDefault()?.SyntaxToken != binary.OperatorToken.Kind())
-                        ret.Add(new MathOperation() { SyntaxToken = binary.OperatorToken.Kind() });
+                    if (ret.LastOrDefault()?.Expression != binary.Kind())
+                        ret.Add(new MathOperation(binary.Kind()));
                     ret.Last().Variables.Add(binary.Right.ToString());
                 }
                 else
@@ -101,6 +115,11 @@ namespace CommutativityChecker
             else if (expression is ParenthesizedExpressionSyntax parenthesized)
             {
                 ret.AddRange(GetMathOperations(parenthesized.Expression));
+            }
+            else if (expression is IdentifierNameSyntax)
+            {
+                ret.Add(new MathOperation(GetParentExpression(expression.Parent)));
+                ret.Last().Variables.Add(expression.ToString());
             }
             return ret;
         }

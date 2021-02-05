@@ -39,9 +39,12 @@ namespace CommutativityChecker
             var tokensToCheck = node.DescendantNodes().OfType<StatementSyntax>()
                 .Select(x => x.DescendantNodes()
                 .OfType<BinaryExpressionSyntax>().FirstOrDefault());
+
             var attributeArg = node.SyntaxTree.GetRoot().DescendantNodes()
-                .OfType<AttributeArgumentSyntax>()
-                .Select(x => x.ToString().Replace("\"", "")).ToList();
+               .OfType<AttributeSyntax>()
+               .Single(attribute => attribute.Name.ToString() == "Commutative").ArgumentList.Arguments
+               .Select(argument => argument.ToString().Replace("\"", "")).ToList();
+
             if (tokensToCheck != null)
                 foreach (var token in tokensToCheck)
                 {
@@ -52,19 +55,19 @@ namespace CommutativityChecker
         }
         static bool IsCommutative(List<MathOperation> operations, params string[] args)
         {
-            List<string> placeCheck = new List<string> { }; // a*b + a : false, не хватает b во втором слагаемом
+            var placeCheck = new List<string> { }; // a*b + a : false, не хватает b во втором слагаемом
             foreach (var opeation in operations)
             {
-                var countCheck = opeation.Variables.Where(x => args.Contains(x)).ToList(); // a*a*b  : false, не хватает множителя b
+                var countCheck = opeation.Variables.Where(x => args.Contains(x)); // a*a*b  : false, не хватает множителя b
                 int count = 0;
-                if (countCheck.Count > 1)
+                if (countCheck.Count() > 1)
                 {
                     foreach (string op in countCheck)
                     {
-                        if (count != 0 && countCheck.Count > 1 && count != countCheck.Count(x => x == op))
+                        if (count != 0 && countCheck.Count() > 1 && count != countCheck.Count(x => x == op))
                             return false;
                         count = countCheck.Count(x => x == op);
-                    }                   
+                    }
                 }
                 placeCheck.AddRange(countCheck.Distinct());
             }
